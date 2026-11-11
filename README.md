@@ -9,6 +9,6 @@ This repository contains the R code used for the statistical analyses in the *Ta
 
 ## Notes
 
-The repository focuses on the analysis code. The code used to generate and recode the variables is not included, as variable construction may differ across implementations.
+The repository focuses on the analysis code. The code for generating and recoding the variables is not included. This is for data protection reasons, and the creation of the variables may vary depending on the implementation.
 
-The analysis code is currently being reviewed and may be updated. Changes will be indicated in the code.
+The analysis code has been updated. Variables have been added, and additional robustness checks have been included.
