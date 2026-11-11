@@ -1,56 +1,52 @@
-library(survey)
 library(srvyr)
 library(dplyr)
 library(ggplot2)
 library(modelsummary)
+library(tidyverse)
 #############################################################################################
 load("design.RData")  ###load your data
 ###########################################################################################
-coef_map <- c(   #Customization for regression outputs
-  "D_Male1"                = "Male",
+coef_map <- c(     #Customization for regression outputs
+  "D_Male1"                = "Gender: male",
   "Age"                    = "Age",
+  "Age_z"                  = "Age",  #z-standardization
+  "D_old50"                = "Germans above 50 y.",
   "Edu_grp_allLSD"         = "Lower secondary degree",
   "Edu_grp_allUSD"         = "Upper secondary degree",
   "Edu_grp_allUD"          = "Higher education level",
   "Inc_grpmid"             = "Income 2,000-3,999€",
   "Inc_grphigh"            = "Income ≥ 4.000",
-  "AmountCig"              = "Amount Cigarettes",
+  "Inc_equiv_z"            = "Equiv. income",  #z-standardization
+  "AmountCig"              = "Amount cigarettes",
+  "Cig_z"                  = "Amount cigarettes", #z-standardization
+  "Inc_equiv_z × Cig_z"    = "stand. Income × amount cigarettes ",
   "D_Current_new"          = "New products",
-  "D_Opportunities"        = "Nearby border",
+  "D_Border_east"          = "Nearby east border",
+  "D_Border_west"          = "Nearby west border",
   "D_Ost"                  = "East Germany",
+  "D_Ost_wo_berlin"        = "East Germany wo Berlin",
+  "D_Ost_up50"             = "East Germans above 50 y.",
+  "D_old50:D_Ost"          = "East Germans × older than 50 y.",
   "TaxFreedom_w"           = "Restriction of freedom",
+  "Freedom_z"              = "Restriction of freedom", #z-standardization
   "D_Right"                = "AfD voter",
   "D_Left"                 = "Left Party voter",
   "D_Mid"                  = "Union voter",
-  "D_Anti" = "Anti-establishment",
-  "Inc_grpmid:AmountCig"   = "Middle income × Amount Cigarettes",
-  "Inc_grphigh:AmountCig"  = "High income × Cigarettes",
-  "Inc_grpmid:Edu_grp_allUSD"   = "Middle income × Secondary degree",
-  "Inc_grphigh:Edu_grp_allUSD"   = "High income × Secondary degree",
-  "Inc_grpmid:Edu_grp_allUD"= "Middle income × University degree",
-  "Inc_grphigh:Edu_grp_allUD"= "High income × University degree"
+  "D_Anti"                 = "Anti-establishment",
+  "D_other_voter"          = "NA voter",
+  "Inc_grpmid:AmountCig"   = "Middle income × Amount cigarettes",
+  "Inc_grphigh:AmountCig"  = "High income × cigarettes",
+  "Inc_grpmid:Cig_z"   = "Middle income × stand. amount cigarettes",
+  "Inc_grphigh:Cig_z"  = "High income × stand. amount cigarettes",
+  "Inc_grpmid:Edu_grp_allUSD"   = "Middle income × Upper secondary degree",
+  "Inc_grphigh:Edu_grp_allUSD"   = "High income × Upper secondary degree",
+  "Inc_grpmid:Edu_grp_allUD"= "Middle income × Higher education level",
+  "Inc_grphigh:Edu_grp_allUD"= "High income × Higher education level"
 )
 
 ###################################################################################################
-### creates a srvyr-object to use dplyr-friendly functions
+### creates a srvyr-object to use dplyr-friendly functions (if needed)
 df.srvyr <- as_survey_design(design)
-df.srvyr %>% 
-  group_by(Sex) %>% 
-  summarise(mean_age = survey_mean(Age, vartype = "ci", level = 0.95))
-
-prop.table(svytable(~Sundayquestion, design = design))
-
-df.srvyr %>%
-  group_by(Sex, Sundayquestion) %>%
-  summarise(prop = survey_prop(vartype = "ci", level = 0.99))
-### make better plots
-# instead of 
-svyhist(~Age, design = design)
-## do: (essentially: use df_D and consider the weights, r_rake, explicitly)
-ggplot(df_D, aes(x = Age, weight = w_rake)) +
-  geom_histogram(binwidth = 5, colour = "white", fill = "purple") +
-  geom_vline(xintercept = as.numeric(svymean(~Age, design)[1]), linetype = "dashed" ) +
-  theme_minimal(base_size = 18)
 
 ###################################################################################################
 #preparation
@@ -70,57 +66,37 @@ fit_svy <- function(f) {
   )
 }
 
-
 f_list_illegalaccess <- list(
-  m0     = D_IllegalAccess ~ Age + D_Male + Inc_grp + Edu_grp_all + AmountCig + D_Current_new + D_Opportunities + D_Ost + TaxFreedom_w + D_Right, #model 1
-  m1     = D_IllegalAccess ~ Age + D_Male + Inc_grp + Edu_grp_all + D_Opportunities, #model 2
-  m2     = D_IllegalAccess ~ D_Male + D_Ost + D_Current_new + TaxFreedom_w + D_Right, 
-  m3     = D_IllegalAccess ~ D_Male + D_Ost + D_Current_new + D_Right, 
-  m4     = D_IllegalAccess ~ Age + D_Male + D_Current_new + D_Ost + D_Anti, 
-  m5     = D_IllegalAccess ~ Age + D_Male + Inc_grp + Edu_grp_all + AmountCig + D_Current_new + D_Opportunities + D_Ost + D_Anti 
+  reg1_access     = D_IllegalAccess ~ Age_z + D_Male + Inc_equiv_z + Cig_z + Edu_grp_all + D_Current_new + D_Border_west + D_Border_east + D_Ost + Freedom_z + D_Right, #Tab. 2
+  reg2_access     = D_IllegalAccess ~ Age_z + D_Male + Inc_equiv_z + Edu_grp_all + Cig_z + D_Current_new + D_Border_west + D_Border_east + D_Ost + D_Anti, #Tab. 3
+  reg3_access     = D_IllegalAccess ~ Age_z + D_Male + Inc_equiv_z + Cig_z + Edu_grp_all + D_Current_new + D_Border_west + D_Border_east + Freedom_z + D_Right, #Tab. A1
+  reg4_access     = D_IllegalAccess ~ Age_z + D_Male + Inc_equiv_z + Cig_z + Edu_grp_all + D_Current_new + D_Border_west + D_Ost + Freedom_z + D_Right, #Tab. A2
+  reg5_access     = D_IllegalAccess ~ D_old50 + D_Male + Inc_equiv_z + Cig_z + Edu_grp_all + D_Current_new + D_Border_west + D_Border_east + D_Ost + D_old50:D_Ost + Freedom_z + D_Right #Tab. A3
 )
 
 f_list_propensity <- list(
-  p0     = D_Propensity_Illegal ~ Age + D_Male + Inc_grp + Edu_grp_all + AmountCig + D_Current_new + D_Opportunities + D_Ost + TaxFreedom_w + D_Right, #model 1
-  p1     = D_Propensity_Illegal ~ Age + D_Male + Inc_grp + Edu_grp_all + D_Opportunities, #model 2
-  p2     = D_Propensity_Illegal ~ Age + D_Male + D_Ost + TaxFreedom_w + D_Right,
-  p3     = D_Propensity_Illegal ~ Age + D_Male + D_Ost + D_Right, 
-  p4     = D_Propensity_Illegal ~ Age + D_Male + D_Current_new + D_Ost + D_Anti,
-  p5     = D_Propensity_Illegal ~ Age + D_Male + Inc_grp + Edu_grp_all + AmountCig + D_Current_new + D_Opportunities + D_Ost + D_Anti
+  reg1_propensity     = D_Propensity_Illegal ~ Age_z + D_Male + Inc_equiv_z + Cig_z + Edu_grp_all + + D_Current_new + D_Border_west + D_Border_east + D_Ost + Freedom_z + D_Right, #Tab. 2 
+  reg2_propensity     = D_Propensity_Illegal ~ Age_z + D_Male + Inc_equiv_z + Edu_grp_all + Cig_z + D_Current_new + D_Border_west + D_Border_east + D_Ost + D_Anti, #Tab. 3
+  reg3_propensity     = D_Propensity_Illegal ~ Age_z + D_Male + Inc_equiv_z + Cig_z + Edu_grp_all + D_Current_new + D_Border_west + D_Border_east + Freedom_z + D_Right, #Tab. A1
+  reg4_propensity     = D_Propensity_Illegal ~ Age_z + D_Male + Inc_equiv_z + Cig_z + Edu_grp_all + D_Current_new + D_Border_west + D_Ost + Freedom_z + D_Right, #Tab. A2
+  reg5_propensity     = D_Propensity_Illegal ~ D_old50 + D_Male + Inc_equiv_z + Cig_z + Edu_grp_all + D_Current_new + D_Border_west + D_Border_east + D_Ost + D_old50:D_Ost + Freedom_z + D_Right #Tab. A3
 )
 
-#rm(m0, m1, m2, m3, m4, m5,
-#   p0, p1, p2, p3, p4, p5,
-#   s0, s1)
+#rm()
 
-mod_heavysmoker <- lapply(f_list_heavysmoker, fit_svy)
 mod_illegalaccess <- lapply(f_list_illegalaccess, fit_svy)
 mod_propensity    <- lapply(f_list_propensity, fit_svy)
 
-# start sb1303
+
 main0 <- mod_illegalaccess[[1]]
 main1 <- mod_propensity[[1]]
-modelsummary(list(main0,main1),
+modelsummary(list("Source knowledge" = main0,"Social acceptance" = main1),
   exponentiate = T,
   statistic = "({conf.low}, {conf.high})",
   stars = TRUE,
   coef_map = coef_map,
   coef_omit = "(Intercept)",
-  vcov = "robust",
+  vcov = "HC1",
   gof_omit = "^(?!AIC|BIC|Num\\.Obs\\.|Std.Errors)",
-#  cluster = "Bundesland"    
-)
-
-
-main2 <- mod_illegalaccess[[6]]
-main3 <- mod_propensity[[6]]
-modelsummary(list(main2,main3),
-  exponentiate = T,
-  statistic = "({conf.low}, {conf.high})",
-  stars = TRUE,
-  coef_map = coef_map,
-  coef_omit = "(Intercept)",
-  vcov = "robust",
-  gof_omit = "^(?!AIC|BIC|Num\\.Obs\\.|Std.Errors)",
-#  cluster = "Bundesland"
+  #output = "yourName.tex"
 )
